@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Clínica Veterinaria</string>
+    <string name="title_activity_main">Clínica Veterinaria</string>
+    <string name="package_name">com.servivet.clinicaveterinaria</string>
+    <string name="custom_url_scheme">com.servivet.clinicaveterinaria</string>
+</resources>

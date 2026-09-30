@@ -1,0 +1,88 @@
+name: APK Android
+
+# Compila el APK en cada push y lo publica como "Release" del repositorio,
+# listo para descargar e instalar desde el teléfono.
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Revisar el código
+        run: npm run check
+
+      - name: Copiar la interfaz al proyecto Android
+        run: npm run vendor && npx cap sync android
+
+      # Opcional: si se configuran estos secretos en el repositorio se firma
+      # con esa llave privada en lugar de la incluida (ver README).
+      - name: Llave de firma desde secretos
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/firma.keystore"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/firma.keystore" >> "$GITHUB_ENV"
+            echo "Usando la llave de los secretos del repositorio"
+          fi
+
+      - name: Compilar APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Preparar archivo
+        run: |
+          mkdir -p salida
+          cp android/app/build/outputs/apk/release/app-release.apk salida/ClinicaVeterinaria.apk
+          ls -la salida
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClinicaVeterinaria-apk-${{ github.run_number }}
+          path: salida/ClinicaVeterinaria.apk
+
+      - name: Publicar Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Clínica Veterinaria móvil v1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: salida/ClinicaVeterinaria.apk
+          body: |
+            APK para Android (7.0 o superior) · rama `${{ github.ref_name }}` · commit ${{ github.sha }}
+
+            **Instalar:** abre esta página desde el teléfono, toca `ClinicaVeterinaria.apk` y permite "instalar apps de fuentes desconocidas" cuando Android lo pida.
+            Las versiones nuevas se instalan encima de la anterior sin perder los datos.

@@ -1,0 +1,13 @@
+{
+  "appId": "com.servivet.clinicaveterinaria",
+  "appName": "Clínica Veterinaria",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "iconColor": "#0f766e"
+    }
+  }
+}
