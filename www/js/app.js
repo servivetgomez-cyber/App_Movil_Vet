@@ -122,12 +122,42 @@
       }
     },
 
+    async _alCambiarVisibilidad() {
+      if (!Vinculo.activo()) return;
+      if (document.visibilityState === 'hidden') {
+        // Al salir de la app se sube lo pendiente sin esperar.
+        if (Vinculo.config.pendiente) Vinculo.subirAhora();
+        return;
+      }
+      const cambio = await Vinculo.revisar({ silencioso: true });
+      if (!cambio) return;
+      // No se redibuja un formulario a medio llenar: se avisa y ya.
+      if (document.querySelector('#view-root form#f')) {
+        U.toast('Llegaron datos nuevos de Drive; los verás al salir de este formulario');
+      } else {
+        U.toast('Datos actualizados desde Drive');
+        this.render();
+      }
+    },
+
+    _pintarSync() {
+      const chip = document.getElementById('sync-chip');
+      const visible = Vinculo.activo() && this.db.isLoaded();
+      chip.classList.toggle('hidden', !visible);
+      if (!visible) return;
+      const icono = { ok: '☁️', subiendo: '⏳', pendiente: '⏳', error: '⚠️' }[Vinculo.estado] || '☁️';
+      chip.textContent = icono;
+      chip.title = Vinculo.textoEstado();
+      chip.className = `sync-chip estado-${Vinculo.estado}`;
+    },
+
     _pintarShell({ titulo, tab, atras, sinNav }) {
       document.getElementById('view-title').textContent = titulo || '';
       const btnAtras = document.getElementById('btn-atras');
       btnAtras.classList.toggle('hidden', !atras);
       document.getElementById('bottom-nav').classList.toggle('hidden', Boolean(sinNav));
       document.getElementById('sede-chip').classList.toggle('hidden', Boolean(sinNav));
+      this._pintarSync();
       document.querySelectorAll('#bottom-nav a').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab));
       if (!sinNav) {
         const sede = this.sede();
@@ -140,12 +170,24 @@
       document.getElementById('btn-atras').addEventListener('click', () => this.volver());
       document.getElementById('sede-chip').addEventListener('click', () => this.ir('#/sedes'));
       window.addEventListener('hashchange', () => this.render());
+      document.getElementById('sync-chip').addEventListener('click', () => this.ir('#/datos'));
+      Vinculo.alCambiarEstado(() => this._pintarSync());
+      this.db.onChange(() => Vinculo.marcarCambio());
+      document.addEventListener('visibilitychange', () => this._alCambiarVisibilidad());
       try {
         await this.db.load();
       } catch (err) {
         console.error(err);
         U.toast('No se pudo leer el archivo de datos guardado: ' + err.message, true);
       }
+      await Vinculo.cargarConfig();
+      if (Vinculo.activo()) {
+        // Como el programa de escritorio con su carpeta en Drive: al abrir se
+        // trae lo último que haya en el archivo.
+        const quitar = this.db.isLoaded() ? () => {} : U.cargando('Abriendo el archivo de Google Drive...');
+        try { await Vinculo.revisar({ silencioso: true }); } finally { quitar(); }
+      }
+      this._pintarSync();
       if (this.db.isLoaded()) {
         await this.db.finalizarTratamientosVencidos();
         Notificaciones.revisar(this);

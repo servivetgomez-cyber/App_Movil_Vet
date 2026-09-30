@@ -304,3 +304,11 @@ details.help summary { color: var(--brand); font-weight: 600; }
 .dialog.loading { text-align: center; }
 .spinner { width: 36px; height: 36px; margin: 6px auto 12px; border-radius: 50%; border: 4px solid var(--brand-soft); border-top-color: var(--brand); animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+.sync-chip { border: 0; background: rgba(255, 255, 255, 0.14); border-radius: 999px; width: 34px; height: 30px; font-size: 0.95rem; }
+.sync-chip.estado-error { background: rgba(254, 202, 202, 0.9); }
+.dialog-options { display: flex; flex-direction: column; gap: 2px; }
+.sync-status { display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 4px 0 8px; }
+.sync-status.ok { color: var(--ok); }
+.sync-status.error { color: var(--danger); }
+.sync-status.pendiente, .sync-status.subiendo { color: var(--warn); }

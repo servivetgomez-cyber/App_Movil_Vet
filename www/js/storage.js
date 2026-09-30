@@ -24,6 +24,8 @@
   const Filesystem = plugin('Filesystem');
   const Share = plugin('Share');
   const LocalNotifications = plugin('LocalNotifications');
+  // Plugin propio (android/app/.../ArchivoVinculadoPlugin.java).
+  const ArchivoVinculado = plugin('ArchivoVinculado');
 
   async function leerNativo(nombre) {
     try {
@@ -47,6 +49,7 @@
     esNativo,
     Share,
     LocalNotifications,
+    ArchivoVinculado,
 
     async read() {
       if (esNativo) return leerNativo(ARCHIVO);
@@ -66,6 +69,17 @@
     async readBackup() {
       if (esNativo) return leerNativo(RESPALDO);
       try { return window.localStorage.getItem(RESPALDO); } catch (_) { return null; }
+    },
+
+    /** Archivos auxiliares pequeños de la app (configuración). */
+    async leerAux(nombre) {
+      if (esNativo) return leerNativo(nombre);
+      try { return window.localStorage.getItem(nombre); } catch (_) { return null; }
+    },
+
+    async escribirAux(nombre, texto) {
+      if (esNativo) return escribirNativo(nombre, texto);
+      try { window.localStorage.setItem(nombre, texto); } catch (_) { /* ignore */ }
     },
 
     /**

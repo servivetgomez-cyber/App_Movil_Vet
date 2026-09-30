@@ -94,12 +94,16 @@
           <div class="welcome-logo">🐾</div>
           <h2>Clínica Veterinaria</h2>
           <p>Maneja desde el móvil los mismos datos del programa de escritorio: pacientes, citas, vacunas, historias clínicas, inventario y más.</p>
-          <button class="btn block" id="w-importar">📥 Importar datos del programa</button>
+          ${Vinculo.disponible() ? `<button class="btn block" id="w-drive">☁️ Abrir desde Google Drive</button>
+          <p class="muted small">Elige el <strong>vetclinic-data.json</strong> de la carpeta de Drive que usa el programa de escritorio: quedará vinculado y sincronizado.</p>` : ''}
+          <button class="btn ${Vinculo.disponible() ? 'secondary' : ''} block" id="w-importar">📥 Importar una copia del archivo</button>
           <p class="muted small">Elige el archivo <strong>vetclinic-data.json</strong> (o un respaldo <strong>.vetenc</strong>) que copiaste del computador.</p>
           <button class="btn secondary block" id="w-demo">Probar con datos de ejemplo</button>
           <button class="btn secondary block" id="w-vacio">Empezar sin datos</button>
         </div>`;
       root.querySelector('#w-importar').addEventListener('click', () => Views.datos.importar());
+      const drive = root.querySelector('#w-drive');
+      if (drive) drive.addEventListener('click', () => Views.datos.vincularDrive());
       root.querySelector('#w-demo').addEventListener('click', async () => {
         await App.db.startWithSeed();
         App.ir('#/inicio', { reemplazar: true });
@@ -130,7 +134,7 @@
         </div>
         <div class="menu">
           ${item('#/sedes', '🏥', 'Sede', App.sede() ? App.sede().nombre : 'Todas las sedes')}
-          ${item('#/datos', '🔄', 'Datos y sincronización', 'Importar / exportar con el computador')}
+          ${item('#/datos', '🔄', 'Datos y sincronización', Vinculo.activo() ? 'Google Drive · ' + Vinculo.textoEstado() : 'Google Drive, importar / exportar')}
           ${item('#/acerca', 'ℹ️', 'Acerca de', 'Cómo funciona la app')}
         </div>`;
     }
@@ -164,6 +168,8 @@
         <section class="card prose">
           <h3>Clínica Veterinaria · móvil</h3>
           <p>Esta app usa <strong>el mismo archivo de datos</strong> que el programa de escritorio (<code>vetclinic-data.json</code>), con los mismos campos y numeración. Los datos se guardan solo en este teléfono, en el almacenamiento privado de la app; no se envían a ningún servidor.</p>
+          <h4>Google Drive (como el programa de escritorio)</h4>
+          <p>Si el programa guarda sus datos en una carpeta de Google Drive, en <em>Más → Datos → Vincular archivo de Drive</em> eliges ese mismo <code>vetclinic-data.json</code>. La app lo lee cada vez que se abre y guarda ahí cada cambio (el ícono ☁️ de arriba muestra el estado). Deja cerrado el programa del computador mientras trabajas en el móvil, y viceversa.</p>
           <h4>Pasar datos del computador al móvil</h4>
           <ol>
             <li>En el programa de escritorio: <em>Configuración → Respaldo de datos → Abrir carpeta de datos</em>, o usa un respaldo (<code>.json</code> o <code>.vetenc</code>).</li>

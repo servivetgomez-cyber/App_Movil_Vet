@@ -35,7 +35,7 @@
   }
 
   Views.datos = {
-    titulo: 'Datos y sincronización',
+    titulo: 'Datos',
     atras: true,
 
     async importar() {
@@ -87,6 +87,65 @@
       App.ir('#/inicio', { reemplazar: true });
     },
 
+    /** Vincula el vetclinic-data.json de Google Drive (el mismo que usa el programa). */
+    async vincularDrive() {
+      if (!Vinculo.disponible()) {
+        U.toast('Esta opción solo está disponible en la app de Android.', true);
+        return;
+      }
+      const seguir = await U.dialogo({
+        titulo: 'Abrir desde Google Drive',
+        mensaje: 'En la siguiente pantalla abre el menú ☰, elige Drive y busca la carpeta de datos del programa de escritorio. Toca el archivo vetclinic-data.json.\n\nMientras trabajes en el móvil, deja cerrado el programa del computador: si está abierto, al guardar reemplaza lo que hiciste en el móvil.',
+        aceptar: 'Elegir archivo'
+      });
+      if (!seguir) return;
+      let elegido;
+      try {
+        elegido = await Vinculo.elegir();
+      } catch (err) {
+        if (err && (err.code === 'CANCELADO' || /no se eligi/i.test(err.message || ''))) return;
+        U.toast(err.message || String(err), true);
+        return;
+      }
+      if (!elegido.info.escribible) {
+        const imp = await U.dialogo({
+          titulo: 'Solo lectura',
+          mensaje: `El archivo "${elegido.info.nombre}" se puede leer pero Android no deja modificarlo desde aquí, así que no se puede vincular. ¿Quieres importar una copia de sus datos?`,
+          aceptar: 'Importar copia'
+        });
+        if (imp) {
+          await App.db.replaceWithJson(elegido.texto);
+          U.toast('Datos importados (copia sin vincular)');
+          App.ir('#/inicio', { reemplazar: true });
+        }
+        return;
+      }
+      let usar = 'archivo';
+      if (App.db.isLoaded()) {
+        usar = await U.elegir({
+          titulo: `Vincular "${elegido.info.nombre}"`,
+          mensaje: `El archivo de Drive trae: ${resumen(elegido.data)}.\n\n¿Con qué datos quieres quedarte?`,
+          opciones: [
+            { id: 'archivo', texto: 'Usar los datos de Drive (recomendado)' },
+            { id: 'movil', texto: 'Reemplazar Drive con los del móvil', estilo: 'danger' }
+          ]
+        });
+        if (!usar) return;
+        if (usar === 'movil' && !(await U.confirmar('El archivo de Drive quedará con los datos de este móvil y el programa de escritorio verá esos datos al abrirse. ¿Continuar?', { peligro: true, aceptar: 'Reemplazar' }))) return;
+      }
+      const listo = U.cargando('Vinculando...');
+      try {
+        await Vinculo.vincular(elegido, usar);
+      } catch (err) {
+        listo();
+        U.toast('No se pudo vincular: ' + (err.message || err), true);
+        return;
+      }
+      listo();
+      U.toast(Vinculo.estado === 'error' ? 'Vinculado, pero no se pudo guardar en Drive: ' + Vinculo.ultimoError : 'Archivo de Drive vinculado');
+      App.ir('#/inicio', { reemplazar: true });
+    },
+
     async exportar(cifrado) {
       let texto = App.db.toJson();
       let nombre = 'vetclinic-data.json';
@@ -129,6 +188,23 @@
           <p class="muted small">Tamaño del archivo: ${(tam / 1024).toFixed(0)} KB${imp ? ` · última importación: ${e(new Date(imp.fecha).toLocaleString('es-CO'))} (${e(imp.archivo)})` : ''}${exp ? ` · última exportación: ${e(new Date(exp).toLocaleString('es-CO'))}` : ''}</p>
         </section>
 
+        ${Vinculo.disponible() ? (Vinculo.activo() ? `
+        <section class="card">
+          <h3>☁️ Google Drive</h3>
+          <p>Vinculado a <strong>${e(Vinculo.config.nombre || 'vetclinic-data.json')}</strong>. Cada cambio del móvil se guarda en ese archivo y al abrir la app se trae lo último, igual que el programa de escritorio con su carpeta en Drive.</p>
+          <div class="sync-status ${e(Vinculo.estado)}">${e(Vinculo.textoEstado())}</div>
+          ${Vinculo.ultimoError ? `<p class="muted small">${e(Vinculo.ultimoError)}</p>` : ''}
+          <p class="muted small">Última sincronización: ${Vinculo.config.ultimaSync ? e(new Date(Vinculo.config.ultimaSync).toLocaleString('es-CO')) : '-'}</p>
+          <button class="btn block" id="sync-ahora">🔄 Sincronizar ahora</button>
+          <button class="btn secondary block" id="desvincular">Desvincular</button>
+          <p class="muted small">Deja cerrado el programa del computador mientras trabajas en el móvil (y viceversa): el que tenga el programa abierto pisa los cambios del otro al guardar.</p>
+        </section>` : `
+        <section class="card">
+          <h3>☁️ Abrir desde Google Drive</h3>
+          <p class="muted">Si el programa de escritorio guarda sus datos en una carpeta de Google Drive, vincula ese mismo <code>vetclinic-data.json</code>: la app lo leerá al abrir y guardará ahí cada cambio. Necesitas la app de Google Drive en el teléfono con la misma cuenta.</p>
+          <button class="btn block" id="vincular">Vincular archivo de Drive</button>
+        </section>`) : ''}
+
         <section class="card">
           <h3>📥 Traer datos del computador</h3>
           <p class="muted">Importa el <code>vetclinic-data.json</code> del programa de escritorio o uno de sus respaldos (<code>.json</code> o cifrado <code>.vetenc</code>). Reemplaza los datos del móvil.</p>
@@ -163,6 +239,24 @@
         </section>`;
 
       root.querySelector('#importar').addEventListener('click', () => this.importar());
+      const vincular = root.querySelector('#vincular');
+      if (vincular) vincular.addEventListener('click', () => this.vincularDrive());
+      const syncAhora = root.querySelector('#sync-ahora');
+      if (syncAhora) syncAhora.addEventListener('click', async () => {
+        const listo = U.cargando('Sincronizando con Drive...');
+        let cambio = false;
+        try { cambio = await Vinculo.revisar(); } finally { listo(); }
+        if (!cambio && Vinculo.estado === 'ok') U.toast('Todo al día con Drive');
+        App.render();
+      });
+      const desv = root.querySelector('#desvincular');
+      if (desv) desv.addEventListener('click', async () => {
+        if (Vinculo.config.pendiente && !(await U.confirmar('Hay cambios del móvil que aún no se han guardado en Drive. Si desvinculas, quedarán solo en el teléfono. ¿Desvincular?'))) return;
+        if (!Vinculo.config.pendiente && !(await U.confirmar('Los datos quedan en el móvil, pero dejarán de sincronizarse con el archivo de Drive. ¿Desvincular?'))) return;
+        await Vinculo.desvincular();
+        U.toast('Archivo desvinculado');
+        App.render();
+      });
       root.querySelector('#exportar').addEventListener('click', () => this.exportar(false));
       root.querySelector('#exportar-cif').addEventListener('click', () => this.exportar(true));
       const deshacer = root.querySelector('#deshacer');
@@ -173,8 +267,9 @@
         App.ir('#/inicio', { reemplazar: true });
       });
       root.querySelector('#borrar').addEventListener('click', async () => {
-        const txt = await U.dialogo({ titulo: 'Borrar todo', mensaje: 'Se borrarán todos los datos guardados en este móvil (no afecta al computador). Escribe BORRAR para confirmar.', campo: { placeholder: 'BORRAR' }, aceptar: 'Borrar', peligro: true });
+        const txt = await U.dialogo({ titulo: 'Borrar todo', mensaje: 'Se borrarán todos los datos guardados en este móvil y se desvinculará el archivo de Drive (el archivo de Drive y el computador no se tocan). Escribe BORRAR para confirmar.', campo: { placeholder: 'BORRAR' }, aceptar: 'Borrar', peligro: true });
         if (txt === null || txt.trim().toUpperCase() !== 'BORRAR') return;
+        await Vinculo.desvincular();
         await window.Storage.writeBackup(App.db.toJson());
         await window.Storage.write('');
         App.db.data = null;

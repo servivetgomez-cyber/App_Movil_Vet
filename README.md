@@ -29,7 +29,23 @@ Requiere Android 7.0 o superior.
 
 ## Pasar los datos entre el computador y el móvil
 
-En la app: **Más → Datos y sincronización**.
+En la app: **Más → Datos**.
+
+### Google Drive (recomendado, igual que el programa de escritorio)
+
+Si el programa de escritorio tiene su carpeta de datos en Google Drive (*Configuración → Dónde viven los datos*), el móvil puede usar **ese mismo archivo**:
+
+1. Instala la app de Google Drive en el teléfono con la misma cuenta.
+2. En la app: **Abrir desde Google Drive** (en la bienvenida) o **Más → Datos → Vincular archivo de Drive**.
+3. En el selector abre el menú ☰ → **Drive**, entra a la carpeta de datos y toca `vetclinic-data.json`.
+
+Desde ahí la app lee el archivo cada vez que se abre o se vuelve a ella, y guarda en él cada cambio a los pocos segundos (sin internet queda pendiente y se sube después). El ícono ☁️ de la barra superior muestra el estado. Si el archivo cambió en los dos lados a la vez, la app pregunta qué versión conservar.
+
+> Deja cerrado el programa del computador mientras trabajas en el móvil, y viceversa: el programa guarda lo que tiene en memoria y pisaría los cambios del otro lado.
+
+La app solo recibe permiso sobre ese archivo (no pide la cuenta de Google ni ve el resto del Drive).
+
+### Copia manual (sin Drive)
 
 - **Del computador al móvil:** copia el `vetclinic-data.json` del programa de escritorio (Configuración → Respaldo de datos → Abrir carpeta de datos) o un respaldo `.json` / `.vetenc` cifrado, envíalo al teléfono (Drive, WhatsApp, correo, cable) y toca **Importar archivo**. Los respaldos cifrados se abren con la misma contraseña de acceso del escritorio.
 - **Del móvil al computador:** toca **Exportar** y compártelo (Drive, WhatsApp, correo...). En el computador, con el programa cerrado, reemplaza `vetclinic-data.json` de la carpeta de datos por el exportado. También se puede exportar cifrado (`.vetenc`, AES-256-GCM, mismo formato que los respaldos del escritorio).

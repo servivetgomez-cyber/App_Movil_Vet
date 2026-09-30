@@ -158,6 +158,28 @@
     });
   }
 
+  /** Diálogo con varias opciones: devuelve el id elegido o null. */
+  function elegir({ titulo, mensaje, opciones }) {
+    return new Promise((resolve) => {
+      const capa = document.createElement('div');
+      capa.className = 'dialog-overlay';
+      capa.innerHTML = `
+        <div class="dialog" role="dialog" aria-modal="true">
+          ${titulo ? `<h3>${e(titulo)}</h3>` : ''}
+          ${mensaje ? `<p>${e(mensaje).replace(/\n/g, '<br>')}</p>` : ''}
+          <div class="dialog-options">
+            ${opciones.map((o) => `<button type="button" class="btn ${o.estilo || ''} block" data-id="${e(o.id)}">${e(o.texto)}</button>`).join('')}
+            <button type="button" class="btn secondary block" data-id="">Cancelar</button>
+          </div>
+        </div>`;
+      document.body.appendChild(capa);
+      capa.querySelectorAll('[data-id]').forEach((b) => b.addEventListener('click', () => {
+        capa.remove();
+        resolve(b.dataset.id || null);
+      }));
+    });
+  }
+
   function confirmar(mensaje, opciones = {}) {
     return dialogo({ titulo: opciones.titulo || '¿Estás seguro?', mensaje, aceptar: opciones.aceptar || 'Sí', peligro: opciones.peligro });
   }
@@ -290,7 +312,7 @@
     e, escapeHtml, todayIso, parseIso, addDaysIso, addDaysSkipSunday, addMonthsIso,
     formatDate, formatDateLong, daysUntil, relativo, ageFromBirthdate, formatCurrency,
     normalizarTelefonoWhatsApp, whatsappUrl, especieIcono, badge,
-    toast, dialogo, confirmar, cargando, campo, formData, numOrNull,
+    toast, dialogo, elegir, confirmar, cargando, campo, formData, numOrNull,
     selectorBuscable, normalizar, leerImagen, leerArchivoTexto, vacio, MESES, DIAS
   };
 })();
